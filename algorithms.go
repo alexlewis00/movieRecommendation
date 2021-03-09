@@ -1,40 +1,44 @@
 //Declaring main package, groups functions and all files in same directory movieRecommendation
 package main
 
-//fmt standard library package includes functions for formatting text like printing to the console
+//importing packages
 import (
+	"bufio"
 	"fmt"
+	"io/ioutil"
+	"strings"
+	"strconv"
 )
 
-//Functions that return something need that type specified at end
-	//fun sum(x int, y int) int {}
-
-//Main function, executes when running the main package
 //run file in terminal with "go run <filename>" command
 func main() {
-	fmt.Println("Testing...")
+	//Step 1: Read training data and insert into a 2d array
+	trainingData := getData()
+	fmt.Println(trainingData[0][5]) //prints userid 0's rating on movie 5
+}
 
-	/*
-	//Declaring a variable
-	//<var keyword> <name of variable> <type of variable> = default value is 0 for respective variable type
-		var x int
-	//other way to declare a variable with value
-		x := 5 
+//Function to read the training data and insert data into 2d array (200 users x 1000 movies)
+func getData() [200][1000]int { //func <function name> <returning value of specified type: 2d array of integers>
+	data, err := ioutil.ReadFile("../Data/train.txt") //read contents of file txt into data array
+	if err != nil {
+		fmt.Println("Failed to read file")
+		return [200][1000]int{}
+	}
+	//scan input as sequence of space-delimited tokens
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	scanner.Split(bufio.ScanWords) //split function for only scanning words, not spaces
+	buffer := [200][1000]int{} //buffer to store data in
 
-	//Slices allow for dynamic arrays, no fixed length
-		array := []int{1, 2, 3, 4}
-
-	//maps hold key value pairs
-		//map[type of keys]<type of values in the map>
-		//create map with built in make function
-		vertices := make(map[string]int)
-
-		//set key value pairs with []
-		vertices["first"] = 1
-		vertices["second"] = 2
-		//Results in: map[first:1 second:2]
-
-	//Traverse thorugh an array or slice with range in for loop
-		for index, value := range arr {"index:", index, "value:", value}
-	*/
+	for row := 0; row < 200; row++ {
+		for col := 0; col < 1000; col++ {
+			scanner.Scan() //advances scanner to next token
+			pos, err := strconv.Atoi(scanner.Text()) //Atoi: string conversion to int
+			if err != nil {
+				fmt.Println("Error with scanner at token")
+				return [200][1000]int{}
+			}
+			buffer[row][col] = pos //adding integer value pos into buffer at specified position
+		}
+	}
+	return buffer
 }
