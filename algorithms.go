@@ -6,7 +6,7 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
-	"reflect"
+	//"reflect"
 	"strconv"
 	"strings"
 )
@@ -70,13 +70,9 @@ func userCosine() {
 	scanner := bufio.NewScanner(strings.NewReader(string(data))) //scan input as string of space-delimited tokens
 	scanner.Split(bufio.ScanLines) //split function for only scanning words, not spaces
 	allUsers := []int{}
-	//users := [100][]int{}
+	users := [100][3]int{}
 	for scanner.Scan() {
-		fmt.Println(scanner.Text())
-		fmt.Println("var1 =", reflect.TypeOf(scanner.Text()))
 		line := strings.Fields(scanner.Text()) //Fields function breaks a string around each instance of white space into an array
-		fmt.Println(line)
-		fmt.Println("var1 =", reflect.TypeOf(line))
 		currentUser := line[0]
 		userId, _ := strconv.Atoi(currentUser) //Atoi: string conversion to int
 		currentMovie := line[1]
@@ -84,12 +80,19 @@ func userCosine() {
 		currentRating := line[2]
 		rating, _ := strconv.Atoi(currentRating)
 		allUsers = append(allUsers, userId, movieId,rating)
-		fmt.Println(allUsers)
 	}
-	fmt.Println(allUsers[0])
-	/*
 	for i := 0; i < 100; i++ {
-		users[i] = append(users[i], userId, movieId, rating)
+		for j := 0; j < len(allUsers); j += 3 {
+			index := j
+			currentUserId := users[i][0]
+			if allUsers[j] != currentUserId {
+				users[i][0] = allUsers[j]
+			}
+			index++
+			users[i][1] = allUsers[index]
+			index++
+			users[i][2] = allUsers[index]
+		}
 	}
-	*/
+	fmt.Println(users)
 }
