@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"strings"
 	"strconv"
-	"os"
 )
 
 //run file in terminal with "go run <filename>" command
@@ -66,19 +65,22 @@ func userCosine() {
 		1. Need to read and scan test data
 		2. Iterate through data and compare [row][column] pairs with testing data, userid and movieid
 	*/
-
-	data, err := os.Open("../Data/test5.txt") //read contents of file txt into data array
+	//create another 2d array of test data
+	data, err := ioutil.ReadFile("../Data/test5.txt") //read contents of file txt into data array
 	if err != nil {
 		fmt.Println("Failed to read file")
 	}
-	scanner := bufio.NewScanner(data)
-	scanner.Split(bufio.ScanLines)
-	//buffer := [5]int{} //make slice for buffer
-
+	//scan input as sequence of space-delimited tokens
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	scanner.Split(bufio.ScanWords) //split function for only scanning words, not spaces
 	for scanner.Scan() {
-		fmt.Println(scanner.Text())
+		fmt.Println(scanner.Text()) //printing string every line of data
 	}
-	//I can print the strings but I need to be able to access it has a multidimensional array?
-	//Need to somehow access the ratings related to the specific userid and movieid
-	
+	/*
+	Need to compare active user a being the test data of the userid with the movies that that user has rate
+	Compare this with the training data of that specific movie id
+	Find similarity between ratings in order to find similar users
+	Just need a way of extracting that rating with the movie id pairs
+	Creating an array of arrays? [7687][3] [userids][3] -> [3] = [201, 237, 4]? Need to be able to access each number individually
+	*/
 }
