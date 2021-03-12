@@ -6,7 +6,7 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
-	"sort"
+	//"sort"
 	//"reflect"
 	"math"
 	"strconv"
@@ -15,28 +15,28 @@ import (
 
 //run file in terminal with "go run <filename>" command
 func main() {
-	fmt.Println(userBasedPrediction())
+	fmt.Println(userBasedPrediction("../Data/test5.txt"))
 }
 
 //Function to read the training data and insert data into 2d array (200 users x 1000 movies)
-func getData() [201][1001]int { //func <function name> <returning value of specified type: 2d array of integers>
+func getData() [200][1000]int { //func <function name> <returning value of specified type: 2d array of integers>
 	data, err := ioutil.ReadFile("../Data/train.txt") //read contents of file txt into data array
 	if err != nil {
 		fmt.Println("Failed to read training file")
-		return [201][1001]int{}
+		return [200][1000]int{}
 	}
 	//scan input as sequence of space-delimited tokens
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	scanner.Split(bufio.ScanWords) //split function for only scanning words, not spaces
-	buffer := [201][1001]int{}     //buffer to store data in
+	buffer := [200][1000]int{}     //buffer to store data in
 
-	for row := 1; row < 201; row++ {
-		for col := 1; col < 1001; col++ {
+	for row := 0; row < 200; row++ {
+		for col := 0; col < 1000; col++ {
 			scanner.Scan()                                   //advances scanner to next token
 			currentRank, err := strconv.Atoi(scanner.Text()) //Atoi: string conversion to int
 			if err != nil {
 				fmt.Println("Error with scanner at token")
-				return [201][1001]int{}
+				return [200][1000]int{}
 			}
 			buffer[row][col] = currentRank //adding integer value pos into buffer at specified position
 		}
@@ -44,18 +44,18 @@ func getData() [201][1001]int { //func <function name> <returning value of speci
 	return buffer
 }
 
-//Function to read the test data passed as an argument and insert data into 2d array (100 users x 3 attributes)
-func getTestData(filename string) [101][1001]int {
+//Function to read the test data passed as an argument and insert data into 2d array (100 users x 1000 movies)
+func getTestData(filename string) [100][1000]int {
 	data, err := ioutil.ReadFile(filename) //read contents of file txt into data array
 	if err != nil {
 		fmt.Println("Failed to read test file")
-		return [101][1001]int{}
+		return [100][1000]int{}
 	}
 	scanner := bufio.NewScanner(strings.NewReader(string(data))) //scan input as string of space-delimited tokens
 	scanner.Split(bufio.ScanLines)                               //split function for only scanning words, not spaces
 	checkUsers := []int{}
 	var checker int
-	users := [101][1001]int{} //100 users starting at userid 1, 1000 movies starting at movieid 1
+	users := [100][1000]int{} //100 users starting at userid 1, 1000 movies starting at movieid 1
 	for scanner.Scan() {
 		line := strings.Fields(scanner.Text()) //Fields function breaks a string around each instance of white space into an array
 		currentUser := line[0]
@@ -90,108 +90,81 @@ Design and develop collaborative filtering algorithms that predict the unknown r
 by learning users' preferences from the training data
 */
 
-//Function for the user-based collaborative filtering algorithm with Cosine Similarity
-func userCosine(activeUser int, filename string) [201]float64 {
-	/*
-		"Similar users rate similarly", need test data to find the similarity of the active user to the users of the train data via cosine similarity
-		and be able to use that similarity to predict the unknown ratings of the test data users by returning the array with the top 20 most similar users
-	*/
-	trainingData := getData() //Get the test data
-	testData := getTestData(filename) //Get the train data, set for the active user
-	product := 0
-	squaredOne := 0
-	squaredTwo := 0
-	activeRated := []int{} //keep track of all movies active user has rated
-	similarK := [201]float64{} //array to keep similarity scores of other similar users where index is that user's id
+//Function to find the cosine similarity between two users
+func userCosine(userOne int, userTwo int, filename string) float64 {
+	trainingData := getData() //Get the training data
+	testData := getTestData(filename)
+	var numerator float64 = 0
+	var denominator float64 = 0
+	var squaredOne float64 = 0
+	var squaredTwo float64 = 0
+	var similarity float64 = 0
 
-	//traverse through movies of active user to see the movies this user has actually rated
-	for activeMovie := 1; activeMovie < 1001; activeMovie++ {
-		if testData[activeUser][activeMovie] != 0 { //that means there is a rating
-			activeRated = append(activeRated, activeMovie)
+	//traverse through the movie set to find the movies userOne and userTwo have rated
+	for movieId := 0; movieId < 1000; movieId++ {
+		if testData[userOne][movieId] != 0 && trainingData[userTwo][movieId] != 0 { //both users have rated the same movie
+			//determine similarity score between users
+			numerator = numerator + (float64(trainingData[userOne][movieId]) * float64(trainingData[userTwo][movieId]))
+			squaredOne = squaredOne + (float64(trainingData[userOne][movieId]) * float64(trainingData[userOne][movieId]))
+			squaredTwo = squaredTwo + (float64(trainingData[userTwo][movieId]) * float64(trainingData[userTwo][movieId]))
 		}
 	}
-	//traverse through the training data to find other users who have rated at least one of the same movies as the active user in order to perform cosine similarity
-	for otherUser := 1; otherUser < 201; otherUser++ {
-		checker := 0 //check if other user has rated at least one of the same movies
-		for _, movieID := range activeRated { //iterates over activeRated slice which is the movies the active user has rated, movieID stores the specific value at the index of the iteration
-			if trainingData[otherUser][movieID] != 0 { //other user has rated that movie
-				checker = 1
-				product = product + (testData[activeUser][movieID] * trainingData[otherUser][movieID])
-				squaredOne = squaredOne + (testData[activeUser][movieID] * testData[activeUser][movieID])
-				squaredTwo = squaredTwo + (trainingData[otherUser][movieID] * trainingData[otherUser][movieID])
-			}
-		}
-		if checker > 0 { //if there is a similarity to calculate
-			numerator := float64(product)
-			denominator := math.Sqrt(float64(squaredOne)) * math.Sqrt(float64(squaredTwo))
-			denominator = math.Round(denominator/0.05) * 0.05 //rounds denominator float value to nearest 2 decimal points
-			similarity := float64(numerator / denominator) //similarity of active user with other user of index in for loop iteration
-			similarity = math.Round(similarity/0.0005) * 0.0005
-			similarK[otherUser] = similarity //records the similarity score of the other user at the index of the user's id
-		}
-	}
-	//sort top 20 most similar users to active user based on similarity rating
-	ratings := []float64{} //temp slice to store similarity ratings while sorting top 20 most similar users
-	for i := 0; i < 201; i++ { //traverse through similarK
-		if similarK[i] != 0 { //similarity score present for that other user
-			ratings = append(ratings, similarK[i])
-		}
-	}
-	sort.Float64s(ratings)  //sorts similarity scores in increasing order
-	ratingsK := []float64{} //slice to store the top 20 similarity scores
-	//traverse through the ratings' slice to get the top 20 similarity scores
-	for j := len(ratings) - 1; j > len(ratings)-21; j-- {
-		ratingsK = append(ratingsK, ratings[j]) //append the top 20 similarities into the ratingsK
-	}
-	for z := 1; z < 201; z++ { //traverse through the similarity ratings of similarK
-		check := 0
-		if similarK[z] != 0 { //there is a similarity score
-			for index := range ratingsK {
-				if similarK[z] == ratingsK[index] { //if the similarity rating equals one of the top 20 ratings
-					check = 1
-				}
-			}
-			//if the similarity rating is not one of the top 20 ratings, if it is not found in ratingsK
-			if check == 0 {
-				similarK[z] = 0 //set rating to 0, similarity rating not one of the top 20, user won't be applied into prediction
-			}
-		}
-	}
-	return similarK //return similarity scores of the top 20 most similar users to the given active user
+	denominator = math.Sqrt(squaredOne) * math.Sqrt(squaredTwo)
+	similarity = numerator / denominator
+	return similarity
 }
 
-//Function for the user-based collaborative filtering algorithm with Pearson Correlation
 
-func userBasedPrediction() [101][1001]int {
-	//Using Cosine Similarity
-	test5 := "../Data/test5.txt"
-	testData := getTestData("../Data/test5.txt")
-	trainingData := getData()
-	var numerator float64
-	var denominator float64
-	var prediction int
+func getPrediction(activeUser int, activeMovie int, filename string) int {
+	trainingData := getData() //get training data for similarity prediction
+	kSimilarUsers := [15]int{} //array to store the top 15 most similar users
+	kSimilarRatings := [15]float64{} //array to store similarity scores for the top 15 most similar users
+	leastSimilar := 0 //int variable to keep track of the index for the similar user in kSimilarUsers with the smallest similarity score
+	
+	//find k most similar users to active user given active movie
+	for other := 0; other < 200; other++ {
+		if trainingData[other][activeMovie] != 0 {
+			similarityScore := userCosine(activeUser, other, filename) //returns similarity score between active user and other user
 
-	for activeUser := 1; activeUser < 101; activeUser++ { //traverse through the test data, set of active users we predict for
-		for activeMovie := 1; activeMovie < 1001; activeMovie++ {
-			check := 0
-			if testData[activeUser][activeMovie] == 0 { //need to make prediction for the active user a
-				check = 1 //prediction needed
-				kUsers := userCosine(activeUser, test5) //userCosine function returns an array of 200 users with only similarity ratings of the top 20 most similar users based on cosine similarity
-				for i := 1; i < 201; i++ {
-					if kUsers[i] != 0 { //meaning that there is a similarity rating at that index, the userid has a similarity rating with the active user
-						numerator = numerator + (kUsers[i] * float64(trainingData[i][activeMovie]))
-						numerator = math.Round(numerator/0.0005) * 0.0005
-						denominator = denominator + kUsers[i]
-						denominator = math.Round(denominator/0.0005) * 0.0005
-					}
-				}
+			if similarityScore > kSimilarRatings[leastSimilar] {
+				kSimilarUsers[leastSimilar] = other
+				kSimilarRatings[leastSimilar] = similarityScore
 			}
-			if check > 0 { //execute prediction
-				prediction = int(numerator/denominator) //float64 to int value rounds towards zero
-				testData[activeUser][activeMovie] = int(prediction) //update predicted rating in the testData for the active user's active movie
+
+			for i := 0; i < 15; i++ {
+				if kSimilarRatings[i] < kSimilarRatings[leastSimilar] {
+					leastSimilar = i
+				}
 			}
 		}
 	}
-	//Using Pearson Correlation
-	return testData
+	
+	//predict ratings for active user given most similar 15 users
+	var numerator float64
+	var denominator float64
+	var prediction float64
+	
+	for u := 0; u < 15; u++ { //traverse through the top 15 most similar users
+		numerator = numerator + (kSimilarRatings[u] * float64(trainingData[kSimilarUsers[u]][activeMovie]))
+		denominator = denominator + kSimilarRatings[u]
+	}
+
+	prediction = numerator / denominator
+	return int(math.Round(prediction))
+} 
+
+//Function to predict the ratings for movies 
+func userBasedPrediction(filename string)  [100][1000]int {
+	testData := getTestData(filename)
+	updatedTestData := testData
+
+	for user := 1; user < 101; user++ {
+		for movie := 1; movie < 1001; movie++ {
+			if testData[user][movie] == 0 { //need prediction for active user
+				prediction := getPrediction(user, movie, filename) //to get prediction for movie item for active user
+				updatedTestData[user][movie] = prediction
+			}
+		}
+	}
+	return updatedTestData
 }
