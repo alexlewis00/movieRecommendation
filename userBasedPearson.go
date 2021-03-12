@@ -13,10 +13,7 @@ import (
 
 //run file in terminal with "go run <filename>" command
 func main() {
-	test5 := "../Data/test5.txt"
-	//test10 := "../Data/test10.txt"
-	//test20 := "../Data/test20.txt"
-	fmt.Println(userBasedCosinePrediction(test5))
+	fmt.Println(userBasedPearsonPrediction("../Data/test5.txt"))
 }
 
 //Function to read the training data and insert data into 2d array (200 users x 1000 movies)
@@ -47,22 +44,16 @@ func getData() [200][1000]int { //func <function name> <returning value of speci
 
 //Function to read the test data passed as an argument and insert data into 2d array (100 users x 1000 movies)
 func getTestData(filename string) [100][1000]int {
-	data, err := ioutil.ReadFile(filename) //read contents of text file into data array
+	data, err := ioutil.ReadFile(filename) //read contents of file txt into data array
 	if err != nil {
 		fmt.Println("Failed to read test file")
 		return [100][1000]int{}
 	}
 	scanner := bufio.NewScanner(strings.NewReader(string(data))) //scan input as string of space-delimited tokens
-	scanner.Split(bufio.ScanLines) //split function for only scanning words, not spaces
-	checkUsers := []int{} //slice to store userid's for checking
+	scanner.Split(bufio.ScanLines)                               //split function for only scanning words, not spaces
+	checkUsers := []int{}
 	var checker int
-	users := [100][1000]int{} //100 users starting at userid 0, 1000 movies starting at movieid 0
-	//ensure only the movies for each user as given by the test data applies
-	for i := 0; i < 100; i++ {
-		for j := 0; j < 1000; j++ {
-			users[i][j] = 9
-		}
-	}
+	users := [100][1000]int{} //100 users starting at userid 1, 1000 movies starting at movieid 1
 	for scanner.Scan() {
 		line := strings.Fields(scanner.Text()) //Fields function breaks a string around each instance of white space into an array
 		currentUser := line[0]
@@ -76,12 +67,12 @@ func getTestData(filename string) [100][1000]int {
 			checkUsers = append(checkUsers, userId)
 		} else {
 			checker = 0
-			for i := 0; i < len(checkUsers); i++ { //traverse slice to ensure there are no duplicates for userid
+			for i := 0; i < len(checkUsers); i++ {
 				if checkUsers[i] == userId {
 					checker = 1
 				}
 			}
-			if checker == 0 { //adding new userid to users array
+			if checker == 0 {
 				checkUsers = append(checkUsers, userId)
 			}
 		}
@@ -92,7 +83,7 @@ func getTestData(filename string) [100][1000]int {
 }
 
 //Function to find the cosine similarity between two users
-func userCosine(userOne int, userTwo int, filename string) float64 {
+func userPearson(userOne int, userTwo int, filename string) float64 {
 	trainingData := getData() //Get the training data
 	testData := getTestData(filename)
 	var numerator float64 = 0
@@ -100,19 +91,36 @@ func userCosine(userOne int, userTwo int, filename string) float64 {
 	var squaredOne float64 = 0
 	var squaredTwo float64 = 0
 	var similarity float64 = 0
+	activeUserAverage := getAverageRating(userOne)
+	otherUserAverage := getAverageRating(userTwo)
 
 	//traverse through the movie set to find the movies userOne and userTwo have rated
 	for movieId := 0; movieId < 1000; movieId++ {
-		if testData[userOne][movieId] != 0 && testData[userOne][movieId] != 9 && trainingData[userTwo][movieId] != 0 { //both users have rated the same movie
+		if testData[userOne][movieId] != 0 && trainingData[userTwo][movieId] != 0 { //both users have rated the same movie
 			//determine similarity score between users
-			numerator = numerator + (float64(trainingData[userOne][movieId]) * float64(trainingData[userTwo][movieId]))
-			squaredOne = squaredOne + (float64(trainingData[userOne][movieId]) * float64(trainingData[userOne][movieId]))
-			squaredTwo = squaredTwo + (float64(trainingData[userTwo][movieId]) * float64(trainingData[userTwo][movieId]))
+			
+			numerator = numerator + ((testData[userOne][movieId] - activeUserAverage) * (trainingData[userTwo][movieId] - otherUserAverage))
+			squaredOne = squaredOne + ((testData[userOne][movieId] - activeUserAverage) * (testData[userOne][movieId] - activeUserAverage))
+			squaredTwo = squaredTwo + ((trainingData[userTwo][movieId] - otherUserAverage) * (trainingData[userTwo][movieId] - otherUserAverage))
 		}
 	}
 	denominator = math.Sqrt(squaredOne) * math.Sqrt(squaredTwo)
 	similarity = numerator / denominator
 	return similarity
+}
+
+func getAverageRating(user int) {
+	trainData := getData()
+	var sum float64
+	var num int
+
+	for movie := 0; movie < 1000; movie++ {
+		if trainData[user][movie] != 0 { //user has rated that movie
+			sum += float64(trainData[user][movie])
+			num++
+		}
+	}
+	return sum / float64(num) //returns average rating for given user
 }
 
 func getPrediction(activeUser int, activeMovie int, filename string) int {
@@ -124,7 +132,7 @@ func getPrediction(activeUser int, activeMovie int, filename string) int {
 	//find k most similar users to active user given active movie
 	for other := 0; other < 200; other++ {
 		if trainingData[other][activeMovie] != 0 { //other user has also rated the same movie
-			similarityScore := userCosine(activeUser, other, filename) //returns similarity score between active user and other user
+			similarityScore := userPearson(activeUser, other, filename) //returns similarity score between active user and other user
 
 			if similarityScore > kSimilarRatings[leastSimilar] {
 				kSimilarUsers[leastSimilar] = other //update most similar users array
@@ -143,21 +151,22 @@ func getPrediction(activeUser int, activeMovie int, filename string) int {
 	var numerator float64
 	var denominator float64
 	var prediction float64
+	activeUserAverage := getAverageRating(userOne)
+	otherUserAverage := getAverageRating(userTwo)
 	
 	for u := 0; u < 15; u++ { //traverse through the top 15 most similar users
-		numerator = numerator + (kSimilarRatings[u] * float64(trainingData[kSimilarUsers[u]][activeMovie]))
-		denominator = denominator + kSimilarRatings[u]
+		numerator = numerator + (kSimilarRatings[u] * (float64(trainingData[kSimilarUsers[u]][activeMovie]) - otherUserAverage))
+		denominator = denominator + math.Abs(kSimilarRatings[u])
 	}
 
-	prediction = numerator / denominator
+	prediction = activeUserAverage (numerator / denominator)
 	return int(math.Round(prediction))
 } 
 
 //Function implements user-based collaborative filtering algorithm with cosine similarity
-func userBasedCosinePrediction(filename string)  [100][1000]int {
+func userBasedPearsonPrediction(filename string)  [100][1000]int {
 	testData := getTestData(filename)
 	updatedTestData := testData
-	counter := 0
 
 	for user := 0; user < 100; user++ {
 		for movie := 0; movie < 1000; movie++ {
@@ -166,8 +175,6 @@ func userBasedCosinePrediction(filename string)  [100][1000]int {
 				updatedTestData[user][movie] = prediction
 			}
 		}
-		counter++
-		fmt.Println("Prediction done for user:", counter)
 	}
 	return updatedTestData
 }
