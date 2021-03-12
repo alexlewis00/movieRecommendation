@@ -119,28 +119,28 @@ func userPearson(userOne int, userTwo int, filename string) float64 {
 }
 
 func getAverageRating(user int, filename string) int {
-	trainData := getData()
-	testData := getTestData(filename)
 	var sum float64
 	var num int
 
 	//for the other user
 	if filename == "train" {
+		trainData := getData()
 		for movie := 0; movie < 1000; movie++ {
 			if trainData[user][movie] != 0 { //user has rated that movie
 				sum += float64(trainData[user][movie])
 				num++
 			}
 		}
-		return int(math.Round(sum / float64(num))) //returns average rating for given user
+		return int(sum / float64(num)) //returns average rating for given user
 	} else { //for the active user
+		testData := getTestData(filename)
 		for movie := 0; movie < 1000; movie++ {
 			if testData[user][movie] != 0 && testData[user][movie] != 9 { //user has rated that movie
-				sum += float64(trainData[user][movie])
+				sum += float64(testData[user][movie])
 				num++
 			}
 		}
-		return int(math.Round(sum / float64(num)))
+		return int(sum / float64(num))
 	}
 }
 
@@ -155,6 +155,8 @@ func getPrediction(activeUser int, activeMovie int, filename string) int {
 	for other := 0; other < 200; other++ {
 		if trainingData[other][activeMovie] != 0 { //other user has also rated the same movie
 			similarityScore := userPearson(activeUser, other, filename) //returns similarity score between active user and other user
+
+			//SIMILARITY SCORE SHOWING NAN!!!!!
 
 			if math.Abs(similarityScore) > math.Abs(kSimilarRatings[leastSimilar]) {
 				kSimilarUsers[leastSimilar] = other //update most similar users array
@@ -181,8 +183,8 @@ func getPrediction(activeUser int, activeMovie int, filename string) int {
 		denominator = denominator + math.Abs(kSimilarRatings[u])
 	}
 
-	prediction = float64(activeUserAverage) + (numerator / denominator)
-	return int(math.Round(prediction))
+	prediction = float64(activeUserAverage) + (math.Abs(numerator) / denominator)
+	return int(math.Abs(math.Round(prediction)))
 } 
 
 //Function implements user-based collaborative filtering algorithm with cosine similarity
@@ -191,7 +193,7 @@ func userBasedPearsonPrediction(filename string)  [100][1000]int {
 	updatedTestData := testData
 	counter := 0
 
-	for user := 0; user < 100; user++ {
+	for user := 3; user < 100; user++ {
 		for movie := 0; movie < 1000; movie++ {
 			if testData[user][movie] == 0 { //need prediction for active user
 				prediction := getPrediction(user, movie, filename) //to get prediction for movie item for active user
