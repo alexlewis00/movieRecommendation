@@ -6,8 +6,6 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
-	//"sort"
-	//"reflect"
 	"math"
 	"strconv"
 	"strings"
@@ -15,7 +13,7 @@ import (
 
 //run file in terminal with "go run <filename>" command
 func main() {
-	fmt.Println(userBasedPrediction("../Data/test5.txt"))
+	fmt.Println(userBasedCosinePrediction("../Data/test5.txt"))
 }
 
 //Function to read the training data and insert data into 2d array (200 users x 1000 movies)
@@ -79,16 +77,10 @@ func getTestData(filename string) [100][1000]int {
 			}
 		}
 		//populate 2d array
-		users[len(checkUsers)][movieId] = rating
+		users[len(checkUsers)-1][movieId-1] = rating
 	}
 	return users
 }
-
-/*
-Task:
-Design and develop collaborative filtering algorithms that predict the unknown ratings in the test data
-by learning users' preferences from the training data
-*/
 
 //Function to find the cosine similarity between two users
 func userCosine(userOne int, userTwo int, filename string) float64 {
@@ -114,7 +106,6 @@ func userCosine(userOne int, userTwo int, filename string) float64 {
 	return similarity
 }
 
-
 func getPrediction(activeUser int, activeMovie int, filename string) int {
 	trainingData := getData() //get training data for similarity prediction
 	kSimilarUsers := [15]int{} //array to store the top 15 most similar users
@@ -123,14 +114,14 @@ func getPrediction(activeUser int, activeMovie int, filename string) int {
 	
 	//find k most similar users to active user given active movie
 	for other := 0; other < 200; other++ {
-		if trainingData[other][activeMovie] != 0 {
+		if trainingData[other][activeMovie] != 0 { //other user has also rated the same movie
 			similarityScore := userCosine(activeUser, other, filename) //returns similarity score between active user and other user
 
 			if similarityScore > kSimilarRatings[leastSimilar] {
-				kSimilarUsers[leastSimilar] = other
-				kSimilarRatings[leastSimilar] = similarityScore
+				kSimilarUsers[leastSimilar] = other //update most similar users array
+				kSimilarRatings[leastSimilar] = similarityScore //update most similar users' ratings array
 			}
-
+			//traverse the similar users and ratings arrays to find the least similar user
 			for i := 0; i < 15; i++ {
 				if kSimilarRatings[i] < kSimilarRatings[leastSimilar] {
 					leastSimilar = i
@@ -153,13 +144,13 @@ func getPrediction(activeUser int, activeMovie int, filename string) int {
 	return int(math.Round(prediction))
 } 
 
-//Function to predict the ratings for movies 
-func userBasedPrediction(filename string)  [100][1000]int {
+//Function implements user-based collaborative filtering algorithm with cosine similarity
+func userBasedCosinePrediction(filename string)  [100][1000]int {
 	testData := getTestData(filename)
 	updatedTestData := testData
 
-	for user := 1; user < 101; user++ {
-		for movie := 1; movie < 1001; movie++ {
+	for user := 0; user < 100; user++ {
+		for movie := 0; movie < 1000; movie++ {
 			if testData[user][movie] == 0 { //need prediction for active user
 				prediction := getPrediction(user, movie, filename) //to get prediction for movie item for active user
 				updatedTestData[user][movie] = prediction
