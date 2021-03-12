@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"sort"
-
 	//"reflect"
 	"math"
 	"strconv"
@@ -16,14 +15,7 @@ import (
 
 //run file in terminal with "go run <filename>" command
 func main() {
-	//Step 1: Read training data and insert into a 2d array
-	trainingData := getData() //userid: 1-200 , movieid: 1-1000
-	testData5 := getTestData("../Data/test5.txt") //userid starts at 1 , movieid starts at 1
-	//testData10 := getTestData("../Data/test10.txt")
-	//testData20 := getTestData("../Data/test20.txt")
-	fmt.Println(trainingData[1][5]) //prints userid 1's rating on movieid 5
-	fmt.Println(testData5[1][111])
-	//userCosine("../Data/test5.txt")
+	fmt.Println(userBasedPrediction())
 }
 
 //Function to read the training data and insert data into 2d array (200 users x 1000 movies)
@@ -98,21 +90,14 @@ Design and develop collaborative filtering algorithms that predict the unknown r
 by learning users' preferences from the training data
 */
 
-/* Process:
-	1. Consider active user a
-	2. Find k other users whose ratings are "similar" to a's ratings
-		- Use Cosine Similarity to determine similarity between active user a and other user
-		- Sort by highest order of most similar users (high rating similarity)
-		- Choose some k number to use for rating prediction
-	3. Estimate a's ratings based on the ratings of the k similar users
-*/
-
 //Function for the user-based collaborative filtering algorithm with Cosine Similarity
 func userCosine(activeUser int, filename string) [201]int {
-	//"Similar users rate similarly", need test data to find the similarity of the user to the users of the train data
-	//and be able to use that similarity to predict the unknown ratings of the test data users
+	/*
+	"Similar users rate similarly", need test data to find the similarity of the active user to the users of the train data via cosine similarity
+	and be able to use that similarity to predict the unknown ratings of the test data users by returning the array with the top 20 most similar users
+	*/
 	trainingData := getData() //Get the test data
-	testData := getTestData(filename) //Get the train data, activeUser received applies here
+	testData := getTestData(filename) //Get the train data, set for the active user
 	product := 0
 	squaredOne := 0
 	squaredTwo := 0
@@ -120,59 +105,67 @@ func userCosine(activeUser int, filename string) [201]int {
 	denominator := 0
 	similarity := 0 //similarity score
 	activeRated := []int{} //keep track of all movies active user has rated
-	similarK := [201]int{} //array to keep similarity scores of other users where index is the user's id
+	similarK := [201]int{} //array to keep similarity scores of other similar users where index is that user's id
 
 	//traverse through movies of active user to see the movies this user has actually rated
-	for activeMovie := 1; activeMovie < 1001; activeMovie++ { //traverse through the movies for the active user
-		//see what movies active user has ranked so can determine similarity to other users
+	for activeMovie := 1; activeMovie < 1001; activeMovie++ {
 		if testData[activeUser][activeMovie] != 0 { //that means there is a rating
 			activeRated = append(activeRated, activeMovie)
 		}	
 	}
 	
-	//traverse through the training data to find other users who have rated the same movies in order to perform cosine similarity
+	//traverse through the training data to find other users who have rated at least one of the same movies as the active user in order to perform cosine similarity
 	for otherUser := 1; otherUser < 201; otherUser++ {
-		checker := 0;
-		for _, movieID := range activeRated {
-			if trainingData[otherUser][movieID] != 0 { //other user has rated that movie as well
+		checker := 0; //check if other user has rated at least one of the same movies
+		for _, movieID := range activeRated { //iterates over activeRated slice which is the movies the active user has rated, movieID stores the specific value at the index of the iteration
+			if trainingData[otherUser][movieID] != 0 { //other user has rated that movie
 				checker = 1;
 				product = product + (testData[activeUser][movieID] * trainingData[otherUser][movieID])
 				squaredOne = squaredOne + (testData[activeUser][movieID] * testData[activeUser][movieID])
 				squaredTwo = squaredTwo + (trainingData[otherUser][movieID] * trainingData[otherUser][movieID])
 			}
 		}
-		if checker > 0 { //if there is a new similarity
+		if checker > 0 { //if there is a similarity to calculate
 			numerator = product
 			denominator = int(math.Sqrt(float64(squaredOne)) * (math.Sqrt(float64(squaredTwo))))
 			similarity = numerator / denominator //similarity of active user with other user of index in for loop iteration
 			similarK[otherUser] = similarity //records the similarity score of the other user at the index of the user's id
 		}
 	}
-	ratings := []int{}
-	for i := 0; i < 201; i++ { //traverse through similarK, put all ratings into a slice in order to order
-		ratings = append(ratings, similarK[i])
+	
+	//sort top 20 most similar users to active user based on similarity rating
+	ratings := []int{} //temp slice to store similarity ratings while sorting top 20 most similar users
+	for i := 0; i < 201; i++ { //traverse through similarK
+		if similarK[i] != 0 { //similarity score present for that other user
+			ratings = append(ratings, similarK[i])
+		}
 	}
 	sort.Ints(ratings) //sorts similarity scores in increasing order
-	ratingsK := []int{}
+	ratingsK := []int{} //slice to store the top 20 similarity scores
+	//traverse through the ratings' slice to get the top 20 similarity scores
 	for j := len(ratings)-1; j > len(ratings)-21; j-- {
 		ratingsK = append(ratingsK, ratings[j]) //append the top 20 similarities into the ratingsK
 	}
 	for z := 1; z < 201; z++ { //traverse through the similarity ratings of similarK
 		check := 0
-		for index, _ := range ratingsK {
-			if similarK[z] == ratingsK[index] {
-				check = 1
+		if similarK[z] != 0 { //there is a similarity score
+			for index := range ratingsK {
+				if similarK[z] == ratingsK[index] { //if the similarity rating equals one of the top 20 ratings
+					check = 1
+				}
+			}
+			//if the similarity rating is not one of the top 20 ratings, if it is not found in ratingsK
+			if check == 0 {
+				similarK[z] = 0 //set rating to 0, similarity rating not one of the top 20, user won't be applied into prediction
 			}
 		}
-		//if the similarity rating is not one of the top 20 ratings, if it is not found in ratingsK
-		if check == 0 {
-			similarK[z] = 0 //set rating to 0, similarity rating won't be applied
-		}
 	}
-	return similarK //return similarity scores of the top 5 most similar users to active user
+	return similarK //return similarity scores of the top 20 most similar users to the given active user
 }
 
-func userBasedPrediction() {
+//Function for the user-based collaborative filtering algorithm with Pearson Correlation
+
+func userBasedPrediction() ([101][1001]int) {
 	//Using Cosine Similarity
 	test5 := "../Data/test5.txt"
 	testData := getTestData("../Data/test5.txt")
@@ -181,13 +174,12 @@ func userBasedPrediction() {
 	denominator := 0
 	var prediction int
 
-	for activeUser := 1; activeUser < 101; activeUser++ {
-		activeMovie := 0
-		check := 0
+	for activeUser := 1; activeUser < 101; activeUser++ { //traverse through the test data, set of active users we predict for
 		for activeMovie := 1; activeMovie < 1001; activeMovie++ {
+			check := 0
 			if testData[activeUser][activeMovie] == 0 { //need to make prediction for the active user a
-				check = 1
-				kUsers := userCosine(activeUser, test5) //returns k users based on cosine similarity -> 1-200 userids with each index resulting in a similarity rating
+				check = 1 //prediction needed
+				kUsers := userCosine(activeUser, test5) //userCosine function returns an array of 200 users with only similarity ratings of the top 20 most similar users based on cosine similarity
 				for i := 1; i < 201; i++ {
 					if kUsers[i] != 0 { //meaning that there is a similarity rating at that index, the userid has a similarity rating with the active user
 						numerator = numerator + (kUsers[i] * trainingData[i][activeMovie])
@@ -195,12 +187,15 @@ func userBasedPrediction() {
 					}
 				}
 			}
+			if check > 0 { //execute prediction
+				prediction = numerator / denominator
+				testData[activeUser][activeMovie] = prediction //update predicted rating in the testData for the active user's active movie
+			} 
 		}
-		if check > 0 {
-			prediction = numerator / denominator
-			testData[activeUser][activeMovie] = prediction //update predicted rating for the active user in the testData
-		} 
 	}
-
 	//Using Pearson Correlation
+
+
+
+	return testData
 }
