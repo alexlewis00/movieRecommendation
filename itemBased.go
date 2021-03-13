@@ -16,7 +16,9 @@ func main() {
 	test5 := "../Data/test5.txt"
 	//test10 := "../Data/test10.txt"
 	//test20 := "../Data/test20.txt"
-	fmt.Println(itemBasedCosinePrediction(test5))
+	updatedTestData := itemBasedCosinePrediction(test5)
+	testData := getTestData(test5)
+	fmt.Println(getRMSE(testData, updatedTestData)) //prints the RMSE to evaluate the prediction
 }
 
 //Function to read the training data and insert data into 2d array (200 users x 1000 movies)
@@ -127,7 +129,7 @@ func getAverageRating(totalUsers[]int, movie int, filename string) int {
 	var sum float64
 	var num int
 	testData := getTestData(filename)
-	
+
 	for _, value := range totalUsers {
 		sum += float64(testData[value][movie]) //sum of all the users
 		num++
@@ -179,11 +181,13 @@ func itemBasedCosinePrediction(filename string)  [100][1000]int {
 	updatedTestData := testData
 	counter := 0
 
-	for user := 3; user < 100; user++ {
+	for user := 0; user < 100; user++ {
 		for movie := 0; movie < 1000; movie++ {
 			if testData[user][movie] == 0 { //need prediction for active user
 				prediction := getPrediction(user, movie, filename) //to get prediction for movie item for active user
-				fmt.Println(prediction)
+				if math.Abs(float64(prediction)) > 6 {
+					prediction = 1
+				}
 				updatedTestData[user][movie] = prediction
 			}
 		}
@@ -191,4 +195,23 @@ func itemBasedCosinePrediction(filename string)  [100][1000]int {
 		fmt.Println("Prediction done for user:", counter)
 	}
 	return updatedTestData
+}
+
+//Function to evaluate prediction
+func getRMSE(testData[100][1000]int, predictedData[100][1000]int) float64 {
+	fmt.Print("Evaluating predictions")
+	actualData := getData() //retrieves the trainingData
+	var totalSum int = 0
+	var totalMissing int = 0
+	//traverse the missing ratings in the test set
+	for user := 0; user < 100; user++ {
+		for movie := 0; movie < 100; movie++ {
+			if testData[user][movie] == 0 { //denotes the missing ratings
+				totalMissing++
+				totalSum = totalSum + ((predictedData[user][movie] - actualData[user][movie]) * (predictedData[user][movie] - actualData[user][movie]))
+			}
+		}
+	}
+	score := math.Sqrt(float64(totalSum/totalMissing))
+	return score
 }

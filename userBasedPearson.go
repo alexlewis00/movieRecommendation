@@ -16,7 +16,9 @@ func main() {
 	test5 := "../Data/test5.txt"
 	//test10 := "../Data/test10.txt"
 	//test20 := "../Data/test20.txt"
-	fmt.Println(userBasedPearsonPrediction(test5))
+	updatedTestData := userBasedPearsonPrediction(test5)
+	testData := getTestData(test5)
+	fmt.Println(getRMSE(testData, updatedTestData)) //prints the RMSE to evaluate the prediction
 }
 
 //Function to read the training data and insert data into 2d array (200 users x 1000 movies)
@@ -53,8 +55,8 @@ func getTestData(filename string) [100][1000]int {
 		return [100][1000]int{}
 	}
 	scanner := bufio.NewScanner(strings.NewReader(string(data))) //scan input as string of space-delimited tokens
-	scanner.Split(bufio.ScanLines) //split function for only scanning words, not spaces
-	checkUsers := []int{} //slice to store userid's for checking
+	scanner.Split(bufio.ScanLines)                               //split function for only scanning words, not spaces
+	checkUsers := []int{}                                        //slice to store userid's for checking
 	var checker int
 	users := [100][1000]int{} //100 users starting at userid 0, 1000 movies starting at movieid 0
 	//ensure only the movies for each user as given by the test data applies
@@ -119,7 +121,7 @@ func userPearson(userOne int, userTwo int, filename string) float64 {
 }
 
 func getAverageRating(user int, filename string) int {
-	var sum float64
+	var sum int
 	var num int
 
 	//for the other user
@@ -127,36 +129,36 @@ func getAverageRating(user int, filename string) int {
 		trainData := getData()
 		for movie := 0; movie < 1000; movie++ {
 			if trainData[user][movie] != 0 { //user has rated that movie
-				sum += float64(trainData[user][movie])
+				sum += trainData[user][movie]
 				num++
 			}
 		}
-		return int(sum / float64(num)) //returns average rating for given user
+		return int(float64(sum) / float64(num)) //returns average rating for given user
 	} else { //for the active user
 		testData := getTestData(filename)
 		for movie := 0; movie < 1000; movie++ {
 			if testData[user][movie] != 0 && testData[user][movie] != 9 { //user has rated that movie
-				sum += float64(testData[user][movie])
+				sum += testData[user][movie]
 				num++
 			}
 		}
-		return int(sum / float64(num))
+		return int(float64(sum) / float64(num))
 	}
 }
 
 func getPrediction(activeUser int, activeMovie int, filename string) int {
 	trainingData := getData() //get training data for similarity prediction
 	train := "train"
-	kSimilarUsers := [15]int{} //array to store the top 15 most similar users
+	kSimilarUsers := [15]int{}       //array to store the top 15 most similar users
 	kSimilarRatings := [15]float64{} //array to store similarity scores for the top 15 most similar users
-	leastSimilar := 0 //int variable to keep track of the index for the similar user in kSimilarUsers with the smallest similarity score
-	
+	leastSimilar := 0                //int variable to keep track of the index for the similar user in kSimilarUsers with the smallest similarity score
+
 	//find k most similar users to active user given active movie
 	for other := 0; other < 200; other++ {
 		if trainingData[other][activeMovie] != 0 { //other user has also rated the same movie
 			similarityScore := userPearson(activeUser, other, filename) //returns similarity score between active user and other user
 			if math.Abs(similarityScore) > math.Abs(kSimilarRatings[leastSimilar]) {
-				kSimilarUsers[leastSimilar] = other //update most similar users array
+				kSimilarUsers[leastSimilar] = other             //update most similar users array
 				kSimilarRatings[leastSimilar] = similarityScore //update most similar users' ratings array
 			}
 			//traverse the similar users and ratings arrays to find the least similar user
@@ -167,13 +169,13 @@ func getPrediction(activeUser int, activeMovie int, filename string) int {
 			}
 		}
 	}
-	
+
 	//predict ratings for active user given most similar 15 users
 	var numerator float64
 	var denominator float64
 	var prediction float64
 	activeUserAverage := getAverageRating(activeUser, filename)
-	
+
 	for u := 0; u < 15; u++ { //traverse through the top 15 most similar users
 		otherUserAverage := getAverageRating(u, train)
 		numerator = numerator + (kSimilarRatings[u] * (float64(trainingData[kSimilarUsers[u]][activeMovie] - otherUserAverage)))
@@ -182,10 +184,10 @@ func getPrediction(activeUser int, activeMovie int, filename string) int {
 
 	prediction = float64(activeUserAverage) + (math.Abs(numerator) / denominator)
 	return int(math.Abs(math.Round(prediction)))
-} 
+}
 
 //Function implements user-based collaborative filtering algorithm with cosine similarity
-func userBasedPearsonPrediction(filename string)  [100][1000]int {
+func userBasedPearsonPrediction(filename string) [100][1000]int {
 	testData := getTestData(filename)
 	updatedTestData := testData
 	counter := 0
@@ -201,4 +203,23 @@ func userBasedPearsonPrediction(filename string)  [100][1000]int {
 		fmt.Println("Prediction done for user:", counter)
 	}
 	return updatedTestData
+}
+
+//Function to evaluate prediction
+func getRMSE(testData [100][1000]int, predictedData [100][1000]int) float64 {
+	fmt.Print("Evaluating predictions")
+	actualData := getData() //retrieves the trainingData
+	var totalSum int = 0
+	var totalMissing int = 0
+	//traverse the missing ratings in the test set
+	for user := 0; user < 100; user++ {
+		for movie := 0; movie < 100; movie++ {
+			if testData[user][movie] == 0 { //denotes the missing ratings
+				totalMissing++
+				totalSum = totalSum + ((predictedData[user][movie] - actualData[user][movie]) * (predictedData[user][movie] - actualData[user][movie]))
+			}
+		}
+	}
+	score := math.Sqrt(float64(totalSum / totalMissing))
+	return score
 }

@@ -177,6 +177,7 @@ func userBasedCosinePrediction(filename string)  [100][1000]int {
 
 //Function to evaluate prediction
 func getRMSE(testData[100][1000]int, predictedData[100][1000]int) float64 {
+	fmt.Print("Evaluating predictions")
 	actualData := getData() //retrieves the trainingData
 	var totalSum int = 0
 	var totalMissing int = 0
