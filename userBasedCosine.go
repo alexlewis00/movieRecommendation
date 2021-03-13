@@ -16,7 +16,9 @@ func main() {
 	test5 := "../Data/test5.txt"
 	//test10 := "../Data/test10.txt"
 	//test20 := "../Data/test20.txt"
-	fmt.Println(userBasedCosinePrediction(test5))
+	updatedTestData := userBasedCosinePrediction(test5)
+	testData := getTestData(test5)
+	fmt.Println(getRMSE(testData, updatedTestData)) //prints the RMSE to evaluate the prediction
 }
 
 //Function to read the training data and insert data into 2d array (200 users x 1000 movies)
@@ -121,10 +123,10 @@ func getPrediction(activeUser int, activeMovie int, filename string) int {
 	kSimilarRatings := [15]float64{} //array to store similarity scores for the top 15 most similar users
 	leastSimilar := 0 //int variable to keep track of the index for the similar user in kSimilarUsers with the smallest similarity score
 	
-	//find k most similar users to active user given active movie
+	//find k most similar users based off of the training data to active user given active movie
 	for other := 0; other < 200; other++ {
 		if trainingData[other][activeMovie] != 0 { //other user has also rated the same movie
-			similarityScore := userCosine(activeUser, other, filename) //returns similarity score between active user and other user
+			similarityScore := userCosine(activeUser, other, filename) //returns similarity score based off of cosine similarity between active user and other user
 
 			if similarityScore > kSimilarRatings[leastSimilar] {
 				kSimilarUsers[leastSimilar] = other //update most similar users array
@@ -159,6 +161,7 @@ func userBasedCosinePrediction(filename string)  [100][1000]int {
 	updatedTestData := testData
 	counter := 0
 
+	//traverse through active users
 	for user := 0; user < 100; user++ {
 		for movie := 0; movie < 1000; movie++ {
 			if testData[user][movie] == 0 { //need prediction for active user
@@ -170,4 +173,22 @@ func userBasedCosinePrediction(filename string)  [100][1000]int {
 		fmt.Println("Prediction done for user:", counter)
 	}
 	return updatedTestData
+}
+
+//Function to evaluate prediction
+func getRMSE(testData[100][1000]int, predictedData[100][1000]int) float64 {
+	actualData := getData() //retrieves the trainingData
+	var totalSum int = 0
+	var totalMissing int = 0
+	//traverse the missing ratings in the test set
+	for user := 0; user < 100; user++ {
+		for movie := 0; movie < 100; movie++ {
+			if testData[user][movie] == 0 { //denotes the missing ratings
+				totalMissing++
+				totalSum = totalSum + ((predictedData[user][movie] - actualData[user][movie]) * (predictedData[user][movie] - actualData[user][movie]))
+			}
+		}
+	}
+	score := math.Sqrt(float64(totalSum/totalMissing))
+	return score
 }
